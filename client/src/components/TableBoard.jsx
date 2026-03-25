@@ -12,6 +12,22 @@ const statusToClass = {
   reserved: 'table-card reserved',
 };
 
+const toTimeMinutes = (timeValue) => {
+  if (typeof timeValue !== 'string') {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const [rawHours, rawMinutes] = timeValue.split(':');
+  const hours = Number(rawHours);
+  const minutes = Number(rawMinutes);
+
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  return hours * 60 + minutes;
+};
+
 const getSortedTables = (tables, layoutOrder) => {
   if (!tables.length) {
     return [];
@@ -52,7 +68,7 @@ export const TableBoard = ({
   const sortedTables = useMemo(() => getSortedTables(tables, layoutOrder), [tables, layoutOrder]);
 
   const reservationsByTableId = useMemo(() => {
-    return reservations.reduce((acc, reservation) => {
+    const reservationsByTable = reservations.reduce((acc, reservation) => {
       const reservationTableId =
         typeof reservation.tableId === 'string' ? reservation.tableId : reservation.tableId?._id;
 
@@ -67,6 +83,22 @@ export const TableBoard = ({
       acc[reservationTableId].push(reservation);
       return acc;
     }, {});
+
+    Object.keys(reservationsByTable).forEach((tableId) => {
+      reservationsByTable[tableId].sort((a, b) => {
+        const dateA = new Date(a.reservationDate);
+        const dateB = new Date(b.reservationDate);
+        const dateDiff = dateA - dateB;
+
+        if (!Number.isNaN(dateDiff) && dateDiff !== 0) {
+          return dateDiff;
+        }
+
+        return toTimeMinutes(a.startTime) - toTimeMinutes(b.startTime);
+      });
+    });
+
+    return reservationsByTable;
   }, [reservations]);
 
   const handleDrop = (targetTableId) => {

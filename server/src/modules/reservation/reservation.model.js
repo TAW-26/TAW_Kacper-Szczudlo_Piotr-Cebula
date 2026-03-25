@@ -10,4 +10,12 @@ const reservationSchema = new mongoose.Schema({
     status: { type: String, enum: ['pending', 'active', 'cancelled'], default: 'active' }
 }, { timestamps: true });
 
+reservationSchema.index(
+    { tableId: 1, reservationDate: 1, startTime: 1, endTime: 1 },
+    {
+        unique: true,
+        partialFilterExpression: { status: { $in: ['pending', 'active'] } }
+    }
+);
+
 export default mongoose.model("Reservation", reservationSchema);

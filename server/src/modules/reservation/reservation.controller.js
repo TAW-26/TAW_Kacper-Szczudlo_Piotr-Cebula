@@ -7,6 +7,10 @@ export const createAllReservations = async(req, res) => {
     }
     catch (error) {
         console.error("Błąd podczas tworzenia rezerwacji:", error);
+        if (error?.code === 11000) {
+            res.status(409).json({ error: "Ten stolik ma już rezerwację na wybraną godzinę" });
+            return;
+        }
         res.status(error.status || 500).json({ error: "Błąd serwera", details: error.message });
     }
 }

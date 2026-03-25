@@ -1,10 +1,32 @@
 import Reservation from "./reservation.model.js";
 import Table from "../table/table.model.js";
 
+const BLOCKING_STATUSES = ["active", "pending"];
+
 const createError = (status, message) => {
 	const error = new Error(message);
 	error.status = status;
 	return error;
+};
+
+const toMinutes = (timeValue) => {
+	if (typeof timeValue !== "string") {
+		return Number.NaN;
+	}
+
+	const [rawHours, rawMinutes] = timeValue.split(":");
+	const hours = Number(rawHours);
+	const minutes = Number(rawMinutes);
+
+	if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+		return Number.NaN;
+	}
+
+	if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+		return Number.NaN;
+	}
+
+	return hours * 60 + minutes;
 };
 
 export const createReservation = async (payload, user) => {
@@ -17,6 +39,17 @@ export const createReservation = async (payload, user) => {
 
 	if (!reservationDate || !startTime || !endTime || !numberOfGuests) {
 		throw createError(400, "Brakuje wymaganych danych");
+	}
+
+	const startMinutes = toMinutes(startTime);
+	const endMinutes = toMinutes(endTime);
+
+	if (Number.isNaN(startMinutes) || Number.isNaN(endMinutes)) {
+		throw createError(400, "Nieprawidłowy format godzin. Użyj HH:mm");
+	}
+
+	if (startMinutes >= endMinutes) {
+		throw createError(400, "Godzina zakończenia musi być późniejsza niż rozpoczęcia");
 	}
 
 	const suitableTables = await Table.find({
@@ -33,6 +66,7 @@ export const createReservation = async (payload, user) => {
 		const overlappingReservations = await Reservation.find({
 			tableId: table._id,
 			reservationDate,
+			status: { $in: BLOCKING_STATUSES },
 			$or: [
 				{ startTime: { $lt: endTime }, endTime: { $gt: startTime } }
 			]

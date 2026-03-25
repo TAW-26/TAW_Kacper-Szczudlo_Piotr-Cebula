@@ -80,8 +80,10 @@ function App() {
   const {
     reservations,
     isLoading: isReservationsLoading,
+    isMutating: isReservationsMutating,
     error: reservationsError,
     refreshReservations,
+    createReservation,
   } = useReservations(token, canReadReservations);
 
   const { isMutating: isMenuMutating, error: menuMutatingError, createMenuItem, updateMenuItem, deleteMenuItem } =
@@ -222,6 +224,49 @@ function App() {
     try {
       await createTable(payload);
       setSuccessNotice('Stolik dodany.');
+    } catch (error) {
+      setErrorNotice(error.message);
+    }
+  };
+
+  const handleCreateReservation = async (payload) => {
+    if (!payload.tableId) {
+      setErrorNotice('Wybierz stolik dla rezerwacji.');
+      return;
+    }
+
+    if (!payload.reservationDate || !payload.startTime || !payload.endTime) {
+      setErrorNotice('Uzupełnij datę i godziny rezerwacji.');
+      return;
+    }
+
+    if (!Number.isInteger(payload.numberOfGuests) || payload.numberOfGuests <= 0) {
+      setErrorNotice('Liczba gości musi być dodatnią liczbą całkowitą.');
+      return;
+    }
+
+    const selectedTable = tables.find((table) => table._id === payload.tableId);
+    const selectedTableCapacity = Number(selectedTable?.capacity) || 0;
+
+    if (!selectedTable) {
+      setErrorNotice('Wybrany stolik nie istnieje. Odśwież dane i spróbuj ponownie.');
+      return;
+    }
+
+    if (selectedTableCapacity && payload.numberOfGuests > selectedTableCapacity) {
+      setErrorNotice(`Maks. ilość gości dla stolika #${selectedTable.tableNumber} to ${selectedTableCapacity}.`);
+      return;
+    }
+
+    if (payload.startTime >= payload.endTime) {
+      setErrorNotice('Godzina zakończenia musi być późniejsza niż rozpoczęcia.');
+      return;
+    }
+
+    try {
+      await createReservation(payload);
+      await refreshReservations();
+      setSuccessNotice('Rezerwacja została dodana.');
     } catch (error) {
       setErrorNotice(error.message);
     }
@@ -369,6 +414,7 @@ function App() {
                   reservations={reservations}
                   canReadReservations={canReadReservations}
                   isReservationsLoading={isReservationsLoading}
+                  isReservationsMutating={isReservationsMutating}
                   waiterAssignments={tableAssignments}
                   role={role}
                   isBusy={isTablesUpdating}
@@ -376,6 +422,7 @@ function App() {
                   onAssignWaiter={handleAssignWaiter}
                   onUpdateTableStatus={handleUpdateTableStatus}
                   onCreateTable={handleCreateTable}
+                  onCreateReservation={handleCreateReservation}
                 />
               </div>
             </section>

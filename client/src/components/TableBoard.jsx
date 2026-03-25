@@ -53,6 +53,7 @@ export const TableBoard = ({
   reservations,
   canReadReservations,
   isReservationsLoading,
+  isReservationsMutating,
   waiterAssignments,
   role,
   isBusy,
@@ -60,12 +61,25 @@ export const TableBoard = ({
   onAssignWaiter,
   onUpdateTableStatus,
   onCreateTable,
+  onCreateReservation,
 }) => {
   const [draggedTableId, setDraggedTableId] = useState('');
   const [draftAssignments, setDraftAssignments] = useState({});
   const [newTableForm, setNewTableForm] = useState({ tableNumber: '', capacity: '' });
+  const [newReservationForm, setNewReservationForm] = useState({
+    tableId: '',
+    reservationDate: '',
+    startTime: '',
+    endTime: '',
+    numberOfGuests: '',
+  });
 
   const sortedTables = useMemo(() => getSortedTables(tables, layoutOrder), [tables, layoutOrder]);
+  const selectedReservationTable = useMemo(
+    () => tables.find((table) => table._id === newReservationForm.tableId) ?? null,
+    [tables, newReservationForm.tableId],
+  );
+  const maxGuestsLimit = Number(selectedReservationTable?.capacity) || 0;
 
   const reservationsByTableId = useMemo(() => {
     const reservationsByTable = reservations.reduce((acc, reservation) => {
@@ -132,6 +146,26 @@ export const TableBoard = ({
     setNewTableForm({ tableNumber: '', capacity: '' });
   };
 
+  const handleCreateReservation = async (event) => {
+    event.preventDefault();
+
+    await onCreateReservation({
+      tableId: newReservationForm.tableId,
+      reservationDate: newReservationForm.reservationDate,
+      startTime: newReservationForm.startTime,
+      endTime: newReservationForm.endTime,
+      numberOfGuests: Number(newReservationForm.numberOfGuests),
+    });
+
+    setNewReservationForm({
+      tableId: '',
+      reservationDate: '',
+      startTime: '',
+      endTime: '',
+      numberOfGuests: '',
+    });
+  };
+
   return (
     <section className="panel">
       <div className="panel-header">
@@ -150,16 +184,61 @@ export const TableBoard = ({
             }
             required
           />
+          <button type="submit" disabled={isBusy}>
+            Dodaj stolik
+          </button>
+        </form>
+      ) : null}
+
+      {canReadReservations ? (
+        <form className="inline-form" onSubmit={handleCreateReservation}>
+          <select
+            value={newReservationForm.tableId}
+            onChange={(event) =>
+              setNewReservationForm((prev) => ({ ...prev, tableId: event.target.value }))
+            }
+            required
+          >
+            <option value="">Wybierz stolik</option>
+            {sortedTables.map((table) => (
+              <option key={table._id} value={table._id}>
+                Stolik #{table.tableNumber} (max {table.capacity} os.)
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={newReservationForm.reservationDate}
+            onChange={(event) =>
+              setNewReservationForm((prev) => ({ ...prev, reservationDate: event.target.value }))
+            }
+            required
+          />
+          <input
+            type="time"
+            value={newReservationForm.startTime}
+            onChange={(event) => setNewReservationForm((prev) => ({ ...prev, startTime: event.target.value }))}
+            required
+          />
+          <input
+            type="time"
+            value={newReservationForm.endTime}
+            onChange={(event) => setNewReservationForm((prev) => ({ ...prev, endTime: event.target.value }))}
+            required
+          />
           <input
             type="number"
             min={1}
-            placeholder="Pojemność"
-            value={newTableForm.capacity}
-            onChange={(event) => setNewTableForm((prev) => ({ ...prev, capacity: event.target.value }))}
+            max={maxGuestsLimit || undefined}
+            placeholder={maxGuestsLimit ? `Maks. ilość gości: ${maxGuestsLimit}` : 'Liczba gości'}
+            value={newReservationForm.numberOfGuests}
+            onChange={(event) =>
+              setNewReservationForm((prev) => ({ ...prev, numberOfGuests: event.target.value }))
+            }
             required
           />
-          <button type="submit" disabled={isBusy}>
-            Dodaj stolik
+          <button type="submit" disabled={isReservationsMutating}>
+            {isReservationsMutating ? 'Zapisywanie...' : 'Dodaj rezerwację'}
           </button>
         </form>
       ) : null}

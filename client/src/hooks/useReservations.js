@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getReservationsRequest } from '../api/reservationsApi';
+import { createReservationRequest, getReservationsRequest } from '../api/reservationsApi';
 
 export const useReservations = (token, canReadReservations) => {
   const [reservations, setReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState('');
 
   const refreshReservations = useCallback(async () => {
@@ -30,10 +31,31 @@ export const useReservations = (token, canReadReservations) => {
     refreshReservations();
   }, [refreshReservations]);
 
+  const createReservation = useCallback(
+    async (payload) => {
+      if (!token) {
+        throw new Error('Musisz być zalogowany, aby utworzyć rezerwację');
+      }
+
+      setIsMutating(true);
+
+      try {
+        const createdReservation = await createReservationRequest(token, payload);
+        setReservations((currentReservations) => [...currentReservations, createdReservation]);
+        return createdReservation;
+      } finally {
+        setIsMutating(false);
+      }
+    },
+    [token],
+  );
+
   return {
     reservations,
     isLoading,
+    isMutating,
     error,
     refreshReservations,
+    createReservation,
   };
 };

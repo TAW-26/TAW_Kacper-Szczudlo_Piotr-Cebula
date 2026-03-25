@@ -30,7 +30,7 @@ const toMinutes = (timeValue) => {
 };
 
 export const createReservation = async (payload, user) => {
-	const { reservationDate, startTime, endTime, numberOfGuests } = payload;
+	const { tableId, reservationDate, startTime, endTime, numberOfGuests } = payload;
 	const userId = user?.userId;
 
 	if (!userId) {
@@ -52,19 +52,21 @@ export const createReservation = async (payload, user) => {
 		throw createError(400, "Godzina zakończenia musi być późniejsza niż rozpoczęcia");
 	}
 
-	const suitableTables = await Table.find({
-		capacity: { $gte: numberOfGuests }
-	});
-
-	if (suitableTables.length === 0) {
-		throw createError(404, "Brak dostępnych stolików dla podanej liczby gości");
-	}
-
 	let assignedTableId = null;
 
-	for (const table of suitableTables) {
+	if (tableId) {
+		const selectedTable = await Table.findById(tableId);
+
+		if (!selectedTable) {
+			throw createError(404, "Wybrany stolik nie istnieje");
+		}
+
+		if (selectedTable.capacity < numberOfGuests) {
+			throw createError(400, "Liczba gości przekracza pojemność wybranego stolika");
+		}
+
 		const overlappingReservations = await Reservation.find({
-			tableId: table._id,
+			tableId: selectedTable._id,
 			reservationDate,
 			status: { $in: BLOCKING_STATUSES },
 			$or: [
@@ -72,9 +74,34 @@ export const createReservation = async (payload, user) => {
 			]
 		});
 
-		if (!overlappingReservations.length) {
-			assignedTableId = table._id;
-			break;
+		if (overlappingReservations.length) {
+			throw createError(409, "Ten stolik ma już rezerwację na wybraną godzinę");
+		}
+
+		assignedTableId = selectedTable._id;
+	} else {
+		const suitableTables = await Table.find({
+			capacity: { $gte: numberOfGuests }
+		});
+
+		if (suitableTables.length === 0) {
+			throw createError(404, "Brak dostępnych stolików dla podanej liczby gości");
+		}
+
+		for (const table of suitableTables) {
+			const overlappingReservations = await Reservation.find({
+				tableId: table._id,
+				reservationDate,
+				status: { $in: BLOCKING_STATUSES },
+				$or: [
+					{ startTime: { $lt: endTime }, endTime: { $gt: startTime } }
+				]
+			});
+
+			if (!overlappingReservations.length) {
+				assignedTableId = table._id;
+				break;
+			}
 		}
 	}
 

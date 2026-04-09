@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 const STATUS_OPTIONS = [
   { value: 'available', label: 'Dostępny' },
@@ -11,6 +11,16 @@ const statusToClass = {
   occupied: 'table-card occupied',
   reserved: 'table-card reserved',
 };
+
+const statusToTokenClass = {
+  available: 'room-token available',
+  occupied: 'room-token occupied',
+  reserved: 'room-token reserved',
+};
+
+const ROOM_TOKEN_NODE_WIDTH = 110;
+const ROOM_TOKEN_NODE_HEIGHT = 90;
+const MAX_VISIBLE_CHAIRS = 12;
 
 const toTimeMinutes = (timeValue) => {
   if (typeof timeValue !== 'string') {
@@ -47,9 +57,24 @@ const getSortedTables = (tables, layoutOrder) => {
   });
 };
 
+const getChairsForCapacity = (capacity) => {
+  const normalizedCapacity = Math.max(1, Math.min(Number(capacity) || 1, MAX_VISIBLE_CHAIRS));
+
+  return Array.from({ length: normalizedCapacity }, (_, index) => {
+    const angle = (2 * Math.PI * index) / normalizedCapacity - Math.PI / 2;
+
+    return {
+      key: `chair-${index}`,
+      x: 55 + Math.cos(angle) * 42,
+      y: 45 + Math.sin(angle) * 32,
+    };
+  });
+};
+
 export const TableBoard = ({
   tables,
   layoutOrder,
+  layoutPositions,
   reservations,
   canReadReservations,
   isReservationsLoading,
@@ -57,15 +82,15 @@ export const TableBoard = ({
   waiterAssignments,
   role,
   isBusy,
-  onReorder,
+  onMoveTable,
   onAssignWaiter,
   onUpdateTableStatus,
-  onCreateTable,
   onCreateReservation,
 }) => {
+  const roomBoardRef = useRef(null);
   const [draggedTableId, setDraggedTableId] = useState('');
+  const [dragOffset, setDragOffset] = useState({ x: 34, y: 24 });
   const [draftAssignments, setDraftAssignments] = useState({});
-  const [newTableForm, setNewTableForm] = useState({ tableNumber: '', capacity: '' });
   const [newReservationForm, setNewReservationForm] = useState({
     tableId: '',
     reservationDate: '',
@@ -115,35 +140,26 @@ export const TableBoard = ({
     return reservationsByTable;
   }, [reservations]);
 
-  const handleDrop = (targetTableId) => {
-    if (!draggedTableId || draggedTableId === targetTableId) {
-      return;
-    }
-
-    const currentOrder = sortedTables.map((table) => table._id);
-    const sourceIndex = currentOrder.indexOf(draggedTableId);
-    const targetIndex = currentOrder.indexOf(targetTableId);
-
-    if (sourceIndex < 0 || targetIndex < 0) {
-      return;
-    }
-
-    const nextOrder = [...currentOrder];
-    const [movedItem] = nextOrder.splice(sourceIndex, 1);
-    nextOrder.splice(targetIndex, 0, movedItem);
-
-    onReorder(nextOrder);
-  };
-
-  const handleCreateTable = async (event) => {
+  const handleBoardDrop = (event) => {
     event.preventDefault();
 
-    await onCreateTable({
-      tableNumber: Number(newTableForm.tableNumber),
-      capacity: Number(newTableForm.capacity),
-    });
+    if (!draggedTableId || !roomBoardRef.current) {
+      return;
+    }
 
-    setNewTableForm({ tableNumber: '', capacity: '' });
+    const boardRect = roomBoardRef.current.getBoundingClientRect();
+    const nextX = event.clientX - boardRect.left - dragOffset.x;
+    const nextY = event.clientY - boardRect.top - dragOffset.y;
+
+    const clampedX = Math.max(0, Math.min(nextX, Math.max(0, boardRect.width - ROOM_TOKEN_NODE_WIDTH)));
+    const clampedY = Math.max(0, Math.min(nextY, Math.max(0, boardRect.height - ROOM_TOKEN_NODE_HEIGHT)));
+
+    onMoveTable((currentPositions) => ({
+      ...currentPositions,
+      [draggedTableId]: { x: Math.round(clampedX), y: Math.round(clampedY) },
+    }));
+
+    setDraggedTableId('');
   };
 
   const handleCreateReservation = async (event) => {
@@ -169,26 +185,55 @@ export const TableBoard = ({
   return (
     <section className="panel">
       <div className="panel-header">
-        <h2>Plan sali (przeciągnij i upuść)</h2>
+        <h2>Plan sali</h2>
       </div>
 
-      {role === 'admin' ? (
-        <form className="inline-form" onSubmit={handleCreateTable}>
-          <input
-            type="number"
-            min={1}
-            placeholder="Numer stolika"
-            value={newTableForm.tableNumber}
-            onChange={(event) =>
-              setNewTableForm((prev) => ({ ...prev, tableNumber: event.target.value }))
-            }
-            required
-          />
-          <button type="submit" disabled={isBusy}>
-            Dodaj stolik
-          </button>
-        </form>
-      ) : null}
+      <div className="room-board-widget">
+        <p className="muted small">Przeciągaj stoliki po planszy i upuszczaj w dowolnym miejscu.</p>
+        <div
+          ref={roomBoardRef}
+          className="room-board"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={handleBoardDrop}
+        >
+          {sortedTables.map((table) => {
+            const tablePosition = layoutPositions[table._id] ?? { x: 0, y: 0 };
+            const chairs = getChairsForCapacity(table.capacity);
+
+            return (
+              <div
+                key={`board-${table._id}`}
+                draggable
+                className="room-token-node"
+                style={{ left: `${tablePosition.x}px`, top: `${tablePosition.y}px` }}
+                onDragStart={(event) => {
+                  const elementRect = event.currentTarget.getBoundingClientRect();
+                  setDragOffset({
+                    x: event.clientX - elementRect.left,
+                    y: event.clientY - elementRect.top,
+                  });
+                  setDraggedTableId(table._id);
+                }}
+                onDragEnd={() => setDraggedTableId('')}
+                aria-label={`Przesuń stolik numer ${table.tableNumber}`}
+              >
+                {chairs.map((chair) => (
+                  <span
+                    key={chair.key}
+                    className="room-chair"
+                    style={{ left: `${chair.x}px`, top: `${chair.y}px` }}
+                    aria-hidden="true"
+                  />
+                ))}
+                <div className={statusToTokenClass[table.status] ?? 'room-token'}>
+                  <span className="room-token-id">#{table.tableNumber}</span>
+                  <span className="room-token-capacity">{table.capacity} os.</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {canReadReservations ? (
         <form className="inline-form" onSubmit={handleCreateReservation}>
@@ -251,10 +296,6 @@ export const TableBoard = ({
           return (
             <article
               key={table._id}
-              draggable
-              onDragStart={() => setDraggedTableId(table._id)}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleDrop(table._id)}
               className={statusToClass[table.status] ?? 'table-card'}
             >
               <h3>Stolik #{table.tableNumber}</h3>

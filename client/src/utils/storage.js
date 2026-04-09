@@ -1,6 +1,7 @@
 export const AUTH_TOKEN_KEY = 'gastrohub_token';
 export const TABLE_ASSIGNMENTS_KEY = 'gastrohub_table_assignments';
 export const TABLE_LAYOUT_KEY = 'gastrohub_table_layout';
+export const TABLE_LAYOUT_POSITIONS_KEY = 'gastrohub_table_layout_positions';
 export const ORDER_TABLE_MAP_KEY = 'gastrohub_order_table_map';
 export const ORDER_TICKET_MAP_KEY = 'gastrohub_order_ticket_map';
 export const TABLE_OPEN_TICKET_KEY = 'gastrohub_table_open_ticket';

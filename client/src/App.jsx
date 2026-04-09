@@ -21,10 +21,15 @@ import {
   saveJson,
   TABLE_ASSIGNMENTS_KEY,
   TABLE_LAYOUT_KEY,
+  TABLE_LAYOUT_POSITIONS_KEY,
   TABLE_OPEN_TICKET_KEY,
 } from './utils/storage';
 
 const CLOSED_ORDER_STATUSES = new Set(['completed', 'cancelled']);
+const TABLE_BOARD_COLUMNS = 6;
+const TABLE_BOARD_X_STEP = 120;
+const TABLE_BOARD_Y_STEP = 96;
+const TABLE_BOARD_PADDING = 20;
 
 const synchronizeLayout = (layoutOrder, tables) => {
   const existingTableIds = new Set(tables.map((table) => table._id));
@@ -37,6 +42,28 @@ const synchronizeLayout = (layoutOrder, tables) => {
   return [...cleanedOrder, ...missingTables];
 };
 
+const getDefaultTablePosition = (index) => ({
+  x: TABLE_BOARD_PADDING + (index % TABLE_BOARD_COLUMNS) * TABLE_BOARD_X_STEP,
+  y: TABLE_BOARD_PADDING + Math.floor(index / TABLE_BOARD_COLUMNS) * TABLE_BOARD_Y_STEP,
+});
+
+const synchronizeLayoutPositions = (layoutPositions, tables) => {
+  return tables.reduce((acc, table, index) => {
+    const position = layoutPositions?.[table._id];
+
+    if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) {
+      acc[table._id] = {
+        x: Math.max(0, Number(position.x)),
+        y: Math.max(0, Number(position.y)),
+      };
+      return acc;
+    }
+
+    acc[table._id] = getDefaultTablePosition(index);
+    return acc;
+  }, {});
+};
+
 const isAuthorizationError = (message) =>
   typeof message === 'string' &&
   (message.includes('Nieprawidłowy token autoryzacyjny') || message.includes('Brak tokenu autoryzacyjnego'));
@@ -44,7 +71,8 @@ const isAuthorizationError = (message) =>
 function App() {
   const [notice, setNotice] = useState({ type: '', message: '' });
   const [tableAssignments, setTableAssignments] = useState(() => loadJson(TABLE_ASSIGNMENTS_KEY, {}));
-  const [tableLayoutOrder, setTableLayoutOrder] = useState(() => loadJson(TABLE_LAYOUT_KEY, []));
+  const [tableLayoutOrder] = useState(() => loadJson(TABLE_LAYOUT_KEY, []));
+  const [tableLayoutPositions, setTableLayoutPositions] = useState(() => loadJson(TABLE_LAYOUT_POSITIONS_KEY, {}));
   const [orderTableMap, setOrderTableMap] = useState(() => loadJson(ORDER_TABLE_MAP_KEY, {}));
   const [orderTicketMap, setOrderTicketMap] = useState(() => loadJson(ORDER_TICKET_MAP_KEY, {}));
   const [tableOpenTicketMap, setTableOpenTicketMap] = useState(() => loadJson(TABLE_OPEN_TICKET_KEY, {}));
@@ -60,7 +88,6 @@ function App() {
     error: tablesError,
     refreshTables,
     updateTable,
-    createTable,
   } = useTables(token);
 
   const canReadOrders = role === 'admin' || role === 'waiter';
@@ -115,6 +142,11 @@ function App() {
     [tableLayoutOrder, tables],
   );
 
+  const normalizedTableLayoutPositions = useMemo(
+    () => synchronizeLayoutPositions(tableLayoutPositions, tables),
+    [tableLayoutPositions, tables],
+  );
+
   useEffect(() => {
     saveJson(TABLE_ASSIGNMENTS_KEY, tableAssignments);
   }, [tableAssignments]);
@@ -167,6 +199,10 @@ function App() {
     saveJson(TABLE_LAYOUT_KEY, normalizedTableLayoutOrder);
   }, [normalizedTableLayoutOrder]);
 
+  useEffect(() => {
+    saveJson(TABLE_LAYOUT_POSITIONS_KEY, normalizedTableLayoutPositions);
+  }, [normalizedTableLayoutPositions]);
+
   const setErrorNotice = (message) => setNotice({ type: 'error', message });
   const setSuccessNotice = (message) => setNotice({ type: 'success', message });
 
@@ -205,25 +241,6 @@ function App() {
     try {
       await updateTable(tableId, { status });
       setSuccessNotice('Status stolika zaktualizowany.');
-    } catch (error) {
-      setErrorNotice(error.message);
-    }
-  };
-
-  const handleCreateTable = async (payload) => {
-    if (!Number.isInteger(payload.tableNumber) || payload.tableNumber <= 0) {
-      setErrorNotice('Numer stolika musi być dodatnią liczbą całkowitą.');
-      return;
-    }
-
-    if (!Number.isInteger(payload.capacity) || payload.capacity <= 0) {
-      setErrorNotice('Pojemność musi być dodatnią liczbą całkowitą.');
-      return;
-    }
-
-    try {
-      await createTable(payload);
-      setSuccessNotice('Stolik dodany.');
     } catch (error) {
       setErrorNotice(error.message);
     }
@@ -411,6 +428,7 @@ function App() {
                 <TableBoard
                   tables={tables}
                   layoutOrder={normalizedTableLayoutOrder}
+                  layoutPositions={normalizedTableLayoutPositions}
                   reservations={reservations}
                   canReadReservations={canReadReservations}
                   isReservationsLoading={isReservationsLoading}
@@ -418,10 +436,9 @@ function App() {
                   waiterAssignments={tableAssignments}
                   role={role}
                   isBusy={isTablesUpdating}
-                  onReorder={setTableLayoutOrder}
+                  onMoveTable={setTableLayoutPositions}
                   onAssignWaiter={handleAssignWaiter}
                   onUpdateTableStatus={handleUpdateTableStatus}
-                  onCreateTable={handleCreateTable}
                   onCreateReservation={handleCreateReservation}
                 />
               </div>

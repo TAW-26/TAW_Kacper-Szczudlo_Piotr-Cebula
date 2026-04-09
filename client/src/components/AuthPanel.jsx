@@ -80,20 +80,6 @@ export const AuthPanel = ({ onLogin, onRegister, isLoading, error }) => {
               />
             </label>
 
-            <label>
-              Rola
-              <select
-                value={registerForm.role}
-                onChange={(event) =>
-                  setRegisterForm((prev) => ({ ...prev, role: event.target.value }))
-                }
-              >
-                <option value="waiter">Kelner</option>
-                <option value="admin">Administrator</option>
-                <option value="client">Klient</option>
-              </select>
-            </label>
-
             <button type="submit" disabled={isLoading}>
               {isLoading ? 'Rejestracja...' : 'Utwórz konto'}
             </button>

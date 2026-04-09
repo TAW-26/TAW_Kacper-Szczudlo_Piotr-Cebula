@@ -100,6 +100,8 @@ function App() {
   const canCreateReservations = isAdmin || isWaiter;
   const canUpdateOrderStatus = canReadOrders;
   const canManageMenu = isAdmin;
+  const canAccessRoom = isAdmin || isWaiter || isClient;
+  const canSeeTableCards = isAdmin || isWaiter;
   const canManageLayout = isAdmin;
   const canAssignWaiter = isAdmin;
   const canUpdateTableStatus = isAdmin;
@@ -422,9 +424,11 @@ function App() {
       </p>
 
       <nav className="view-tabs">
-        <NavLink to="/sala" className={({ isActive }) => (isActive ? 'tab-link active' : 'tab-link')}>
-          Sala
-        </NavLink>
+        {canAccessRoom ? (
+          <NavLink to="/sala" className={({ isActive }) => (isActive ? 'tab-link active' : 'tab-link')}>
+            Sala
+          </NavLink>
+        ) : null}
         {canAccessPos ? (
           <NavLink to="/pos" className={({ isActive }) => (isActive ? 'tab-link active' : 'tab-link')}>
             Zamówienia
@@ -444,29 +448,34 @@ function App() {
         <Route
           path="/sala"
           element={
-            <section className="content-grid single-column">
-              <div className="left-column">
-                <TableBoard
-                  tables={tables}
-                  layoutOrder={normalizedTableLayoutOrder}
-                  layoutPositions={normalizedTableLayoutPositions}
-                  reservations={reservations}
-                  canReadReservations={canReadReservations}
-                  canCreateReservations={canCreateReservations}
-                  isReservationsLoading={isReservationsLoading}
-                  isReservationsMutating={isReservationsMutating}
-                  waiterAssignments={tableAssignments}
-                  isBusy={isTablesUpdating}
-                  isLayoutEditable={canManageLayout}
-                  canAssignWaiter={canAssignWaiter}
-                  canUpdateTableStatus={canUpdateTableStatus}
-                  onMoveTable={setTableLayoutPositions}
-                  onAssignWaiter={handleAssignWaiter}
-                  onUpdateTableStatus={handleUpdateTableStatus}
-                  onCreateReservation={handleCreateReservation}
-                />
-              </div>
-            </section>
+            canAccessRoom ? (
+              <section className="content-grid single-column">
+                <div className="left-column">
+                  <TableBoard
+                    tables={tables}
+                    layoutOrder={normalizedTableLayoutOrder}
+                    layoutPositions={normalizedTableLayoutPositions}
+                    reservations={reservations}
+                    canReadReservations={canReadReservations}
+                    canCreateReservations={canCreateReservations}
+                    isReservationsLoading={isReservationsLoading}
+                    isReservationsMutating={isReservationsMutating}
+                    waiterAssignments={tableAssignments}
+                    isBusy={isTablesUpdating}
+                    showTableCards={canSeeTableCards}
+                    isLayoutEditable={canManageLayout}
+                    canAssignWaiter={canAssignWaiter}
+                    canUpdateTableStatus={canUpdateTableStatus}
+                    onMoveTable={setTableLayoutPositions}
+                    onAssignWaiter={handleAssignWaiter}
+                    onUpdateTableStatus={handleUpdateTableStatus}
+                    onCreateReservation={handleCreateReservation}
+                  />
+                </div>
+              </section>
+            ) : (
+              <Navigate to="/menu" replace />
+            )
           }
         />
         <Route

@@ -82,6 +82,7 @@ export const TableBoard = ({
   isReservationsMutating,
   waiterAssignments,
   isBusy,
+  showTableCards,
   isLayoutEditable,
   canAssignWaiter,
   canUpdateTableStatus,
@@ -304,83 +305,85 @@ export const TableBoard = ({
         </form>
       ) : null}
 
-      <div className="table-grid">
-        {sortedTables.map((table) => {
-          const waiterValue = draftAssignments[table._id] ?? waiterAssignments[table._id] ?? '';
-          const tableReservations = reservationsByTableId[table._id] ?? [];
+      {showTableCards ? (
+        <div className="table-grid">
+          {sortedTables.map((table) => {
+            const waiterValue = draftAssignments[table._id] ?? waiterAssignments[table._id] ?? '';
+            const tableReservations = reservationsByTableId[table._id] ?? [];
 
-          return (
-            <article
-              key={table._id}
-              className={statusToClass[table.status] ?? 'table-card'}
-            >
-              <h3>Stolik #{table.tableNumber}</h3>
-              <p>Pojemność: {table.capacity} os.</p>
-
-              <label>
-                Kelner
-                <input
-                  type="text"
-                  placeholder="np. Jan Kowalski"
-                  value={waiterValue}
-                  onChange={(event) =>
-                    setDraftAssignments((prev) => ({ ...prev, [table._id]: event.target.value }))
-                  }
-                  disabled={!canAssignWaiter || isBusy}
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onAssignWaiter(table._id, waiterValue);
-                  setDraftAssignments((prev) => ({ ...prev, [table._id]: waiterValue }));
-                }}
-                disabled={!canAssignWaiter || isBusy}
+            return (
+              <article
+                key={table._id}
+                className={statusToClass[table.status] ?? 'table-card'}
               >
-                Zapisz kelnera
-              </button>
+                <h3>Stolik #{table.tableNumber}</h3>
+                <p>Pojemność: {table.capacity} os.</p>
 
-              <label>
-                Status stolika
-                <select
-                  value={table.status}
-                  onChange={(event) => onUpdateTableStatus(table._id, event.target.value)}
-                  disabled={!canUpdateTableStatus || isBusy}
+                <label>
+                  Kelner
+                  <input
+                    type="text"
+                    placeholder="np. Jan Kowalski"
+                    value={waiterValue}
+                    onChange={(event) =>
+                      setDraftAssignments((prev) => ({ ...prev, [table._id]: event.target.value }))
+                    }
+                    disabled={!canAssignWaiter || isBusy}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAssignWaiter(table._id, waiterValue);
+                    setDraftAssignments((prev) => ({ ...prev, [table._id]: waiterValue }));
+                  }}
+                  disabled={!canAssignWaiter || isBusy}
                 >
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  Zapisz kelnera
+                </button>
 
-              {!canUpdateTableStatus ? (
-                <p className="muted small">Zmiana statusu wymaga roli admin.</p>
-              ) : null}
-
-              <div>
-                <p className="muted small">Rezerwacje stolika</p>
-                {!canReadReservations ? <p className="muted small">Widoczne dla ról: waiter/admin.</p> : null}
-                {canReadReservations && isReservationsLoading ? <p className="muted small">Wczytywanie...</p> : null}
-                {canReadReservations && !isReservationsLoading && !tableReservations.length ? (
-                  <p className="muted small">Brak rezerwacji.</p>
-                ) : null}
-                {canReadReservations && tableReservations.length ? (
-                  <ul className="list-clean">
-                    {tableReservations.map((reservation) => (
-                      <li key={reservation._id} className="small muted">
-                        {reservation.startTime}-{reservation.endTime}, {reservation.numberOfGuests} os., {reservation.status}
-                      </li>
+                <label>
+                  Status stolika
+                  <select
+                    value={table.status}
+                    onChange={(event) => onUpdateTableStatus(table._id, event.target.value)}
+                    disabled={!canUpdateTableStatus || isBusy}
+                  >
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
                     ))}
-                  </ul>
+                  </select>
+                </label>
+
+                {!canUpdateTableStatus ? (
+                  <p className="muted small">Zmiana statusu wymaga roli admin.</p>
                 ) : null}
-              </div>
-            </article>
-          );
-        })}
-      </div>
+
+                <div>
+                  <p className="muted small">Rezerwacje stolika</p>
+                  {!canReadReservations ? <p className="muted small">Widoczne dla ról: waiter/admin.</p> : null}
+                  {canReadReservations && isReservationsLoading ? <p className="muted small">Wczytywanie...</p> : null}
+                  {canReadReservations && !isReservationsLoading && !tableReservations.length ? (
+                    <p className="muted small">Brak rezerwacji.</p>
+                  ) : null}
+                  {canReadReservations && tableReservations.length ? (
+                    <ul className="list-clean">
+                      {tableReservations.map((reservation) => (
+                        <li key={reservation._id} className="small muted">
+                          {reservation.startTime}-{reservation.endTime}, {reservation.numberOfGuests} os., {reservation.status}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
     </section>
   );
 };

@@ -2,6 +2,7 @@ import { AppError } from '../../common/appError.js';
 
 const THEMEALDB_BASE_URL = process.env.THEMEALDB_BASE_URL ?? 'https://www.themealdb.com/api/json/v1/1';
 const CATALOG_CACHE_TTL_MS = Number(process.env.THEMEALDB_CACHE_TTL_MS ?? 15 * 60 * 1000);
+const THEMEALDB_REQUEST_DELAY_MS = Number(process.env.THEMEALDB_REQUEST_DELAY_MS ?? 50);
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
 
 const cacheState = {
@@ -27,11 +28,20 @@ const mapCatalogItem = (meal) => ({
   category: meal.strCategory ?? 'Other',
 });
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const refreshCatalogCache = async () => {
-  const [categoriesPayload, mealsByLetter] = await Promise.all([
-    fetchFromThemealdb('/categories.php'),
-    Promise.all(LETTERS.map((letter) => fetchFromThemealdb(`/search.php?f=${letter}`))),
-  ]);
+  const categoriesPayload = await fetchFromThemealdb('/categories.php');
+  const mealsByLetter = [];
+
+  for (const [index, letter] of LETTERS.entries()) {
+    const payload = await fetchFromThemealdb(`/search.php?f=${letter}`);
+    mealsByLetter.push(payload);
+
+    if (index < LETTERS.length - 1 && THEMEALDB_REQUEST_DELAY_MS > 0) {
+      await delay(THEMEALDB_REQUEST_DELAY_MS);
+    }
+  }
 
   const categories = (categoriesPayload.categories ?? [])
     .map((item) => item.strCategory)

@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createTableRequest, getTablesRequest, updateTableRequest } from '../api/tablesApi';
 
+const TABLE_REFRESH_INTERVAL_MS = 60_000;
+
 export const useTables = (token) => {
   const [tables, setTables] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState('');
 
-  const refreshTables = useCallback(async () => {
-    setIsLoading(true);
+  const refreshTables = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError('');
 
     try {
@@ -17,12 +21,22 @@ export const useTables = (token) => {
     } catch (tablesError) {
       setError(tablesError.message);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     refreshTables();
+
+    const intervalId = setInterval(() => {
+      refreshTables({ silent: true });
+    }, TABLE_REFRESH_INTERVAL_MS);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [refreshTables]);
 
   const updateTable = useCallback(

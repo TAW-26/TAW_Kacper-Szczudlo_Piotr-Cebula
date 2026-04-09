@@ -77,11 +77,14 @@ export const TableBoard = ({
   layoutPositions,
   reservations,
   canReadReservations,
+  canCreateReservations,
   isReservationsLoading,
   isReservationsMutating,
   waiterAssignments,
-  role,
   isBusy,
+  isLayoutEditable,
+  canAssignWaiter,
+  canUpdateTableStatus,
   onMoveTable,
   onAssignWaiter,
   onUpdateTableStatus,
@@ -143,7 +146,7 @@ export const TableBoard = ({
   const handleBoardDrop = (event) => {
     event.preventDefault();
 
-    if (!draggedTableId || !roomBoardRef.current) {
+    if (!isLayoutEditable || !draggedTableId || !roomBoardRef.current) {
       return;
     }
 
@@ -189,11 +192,19 @@ export const TableBoard = ({
       </div>
 
       <div className="room-board-widget">
-        <p className="muted small">Przeciągaj stoliki po planszy i upuszczaj w dowolnym miejscu.</p>
+        <p className="muted small">
+          {isLayoutEditable
+            ? 'Przeciągaj stoliki po planszy i upuszczaj w dowolnym miejscu.'
+            : 'Podgląd układu sali (edycja dostępna tylko dla administratora).'}
+        </p>
         <div
           ref={roomBoardRef}
           className="room-board"
-          onDragOver={(event) => event.preventDefault()}
+          onDragOver={(event) => {
+            if (isLayoutEditable) {
+              event.preventDefault();
+            }
+          }}
           onDrop={handleBoardDrop}
         >
           {sortedTables.map((table) => {
@@ -203,10 +214,15 @@ export const TableBoard = ({
             return (
               <div
                 key={`board-${table._id}`}
-                draggable
-                className="room-token-node"
+                draggable={isLayoutEditable}
+                className={`room-token-node${isLayoutEditable ? '' : ' locked'}`}
                 style={{ left: `${tablePosition.x}px`, top: `${tablePosition.y}px` }}
                 onDragStart={(event) => {
+                  if (!isLayoutEditable) {
+                    event.preventDefault();
+                    return;
+                  }
+
                   const elementRect = event.currentTarget.getBoundingClientRect();
                   setDragOffset({
                     x: event.clientX - elementRect.left,
@@ -235,7 +251,7 @@ export const TableBoard = ({
         </div>
       </div>
 
-      {canReadReservations ? (
+      {canCreateReservations ? (
         <form className="inline-form" onSubmit={handleCreateReservation}>
           <select
             value={newReservationForm.tableId}
@@ -310,6 +326,7 @@ export const TableBoard = ({
                   onChange={(event) =>
                     setDraftAssignments((prev) => ({ ...prev, [table._id]: event.target.value }))
                   }
+                  disabled={!canAssignWaiter || isBusy}
                 />
               </label>
 
@@ -319,6 +336,7 @@ export const TableBoard = ({
                   onAssignWaiter(table._id, waiterValue);
                   setDraftAssignments((prev) => ({ ...prev, [table._id]: waiterValue }));
                 }}
+                disabled={!canAssignWaiter || isBusy}
               >
                 Zapisz kelnera
               </button>
@@ -328,7 +346,7 @@ export const TableBoard = ({
                 <select
                   value={table.status}
                   onChange={(event) => onUpdateTableStatus(table._id, event.target.value)}
-                  disabled={role !== 'admin' || isBusy}
+                  disabled={!canUpdateTableStatus || isBusy}
                 >
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -338,7 +356,7 @@ export const TableBoard = ({
                 </select>
               </label>
 
-              {role !== 'admin' ? (
+              {!canUpdateTableStatus ? (
                 <p className="muted small">Zmiana statusu wymaga roli admin.</p>
               ) : null}
 

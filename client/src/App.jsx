@@ -90,9 +90,20 @@ function App() {
     updateTable,
   } = useTables(token);
 
-  const canReadOrders = role === 'admin' || role === 'waiter';
-  const canReadReservations = canReadOrders;
+  const isAdmin = role === 'admin';
+  const isWaiter = role === 'waiter';
+  const isClient = role === 'client';
+
+  const canReadOrders = isAdmin || isWaiter;
+  const canCreateOrders = canReadOrders;
+  const canReadReservations = isAdmin || isWaiter;
+  const canCreateReservations = isAdmin || isWaiter;
   const canUpdateOrderStatus = canReadOrders;
+  const canManageMenu = isAdmin;
+  const canManageLayout = isAdmin;
+  const canAssignWaiter = isAdmin;
+  const canUpdateTableStatus = isAdmin;
+  const canAccessPos = canCreateOrders;
 
   const {
     orders,
@@ -406,13 +417,15 @@ function App() {
         <NavLink to="/sala" className={({ isActive }) => (isActive ? 'tab-link active' : 'tab-link')}>
           Sala
         </NavLink>
-        <NavLink to="/pos" className={({ isActive }) => (isActive ? 'tab-link active' : 'tab-link')}>
-          Zamówienia
-        </NavLink>
+        {canAccessPos ? (
+          <NavLink to="/pos" className={({ isActive }) => (isActive ? 'tab-link active' : 'tab-link')}>
+            Zamówienia
+          </NavLink>
+        ) : null}
         <NavLink to="/menu" className={({ isActive }) => (isActive ? 'tab-link active' : 'tab-link')}>
           Menu
         </NavLink>
-        {role === 'admin' && (
+        {canManageMenu && (
           <NavLink to="/admin/menu" className={({ isActive }) => (isActive ? 'tab-link active' : 'tab-link')}>
             Zarządzaj Menu
           </NavLink>
@@ -431,11 +444,14 @@ function App() {
                   layoutPositions={normalizedTableLayoutPositions}
                   reservations={reservations}
                   canReadReservations={canReadReservations}
+                  canCreateReservations={canCreateReservations}
                   isReservationsLoading={isReservationsLoading}
                   isReservationsMutating={isReservationsMutating}
                   waiterAssignments={tableAssignments}
-                  role={role}
                   isBusy={isTablesUpdating}
+                  isLayoutEditable={canManageLayout}
+                  canAssignWaiter={canAssignWaiter}
+                  canUpdateTableStatus={canUpdateTableStatus}
                   onMoveTable={setTableLayoutPositions}
                   onAssignWaiter={handleAssignWaiter}
                   onUpdateTableStatus={handleUpdateTableStatus}
@@ -448,34 +464,38 @@ function App() {
         <Route
           path="/pos"
           element={
-            <section className="content-grid">
-              <div className="left-column">
-                <OrderBuilder
-                  tables={tables}
-                  menuItems={menuItems}
-                  isSubmitting={isOrdersMutating}
-                  openTicketByTable={effectiveTableOpenTicketMap}
-                  onSubmitOrder={handleSubmitOrder}
-                />
+            canAccessPos ? (
+              <section className="content-grid">
+                <div className="left-column">
+                  <OrderBuilder
+                    tables={tables}
+                    menuItems={menuItems}
+                    isSubmitting={isOrdersMutating}
+                    openTicketByTable={effectiveTableOpenTicketMap}
+                    onSubmitOrder={handleSubmitOrder}
+                  />
 
-                <OrdersList
-                  orders={orders}
-                  tables={tables}
-                  orderTableMap={orderTableMap}
-                  ticketOrderMap={orderTicketMap}
-                  tableAssignments={tableAssignments}
-                  canReadOrders={canReadOrders}
-                  canUpdateStatus={canUpdateOrderStatus}
-                  isLoading={isOrdersLoading}
-                  isMutating={isOrdersMutating}
-                  onUpdateTicketStatus={handleUpdateOrderStatus}
-                />
-              </div>
+                  <OrdersList
+                    orders={orders}
+                    tables={tables}
+                    orderTableMap={orderTableMap}
+                    ticketOrderMap={orderTicketMap}
+                    tableAssignments={tableAssignments}
+                    canReadOrders={canReadOrders}
+                    canUpdateStatus={canUpdateOrderStatus}
+                    isLoading={isOrdersLoading}
+                    isMutating={isOrdersMutating}
+                    onUpdateTicketStatus={handleUpdateOrderStatus}
+                  />
+                </div>
 
-              <div className="right-column">
-                <MenuCatalog menuItems={menuItems} isLoading={isMenuLoading || isTablesLoading} />
-              </div>
-            </section>
+                <div className="right-column">
+                  <MenuCatalog menuItems={menuItems} isLoading={isMenuLoading || isTablesLoading} />
+                </div>
+              </section>
+            ) : (
+              <Navigate to="/menu" replace />
+            )
           }
         />
         <Route
@@ -488,7 +508,7 @@ function App() {
             </section>
           }
         />
-        {role === 'admin' && (
+        {canManageMenu && (
           <Route
             path="/admin/menu"
             element={
@@ -507,7 +527,7 @@ function App() {
             }
           />
         )}
-        <Route path="*" element={<Navigate to="/sala" replace />} />
+        <Route path="*" element={<Navigate to={isClient ? '/menu' : '/sala'} replace />} />
       </Routes>
     </main>
   );

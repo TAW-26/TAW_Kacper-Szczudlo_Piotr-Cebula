@@ -422,6 +422,10 @@ button:disabled {
   cursor: grabbing;
 }
 
+.room-token-node.locked {
+  cursor: default;
+}
+
 .room-token {
   width: 78px;
   height: 58px;

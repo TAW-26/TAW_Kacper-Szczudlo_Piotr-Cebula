@@ -46,7 +46,7 @@ export const MenuCatalog = ({ menuItems, isLoading }) => {
           <li key={item._id}>
             <div>
               <p className="title">{item.name}</p>
-              <p className="muted">{item.description || 'Brak opisu'}</p>
+              {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="menu-thumb" loading="lazy" /> : null}
             </div>
             <strong>{Number(item.price).toFixed(2)} zł</strong>
           </li>

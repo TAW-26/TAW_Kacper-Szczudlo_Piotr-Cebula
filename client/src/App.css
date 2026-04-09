@@ -587,6 +587,32 @@ button:disabled {
   box-shadow: var(--shadow-1);
 }
 
+.menu-thumb {
+  margin-top: 0.6rem;
+  width: min(220px, 100%);
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(140, 108, 68, 0.2);
+}
+
+.menu-manager-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-direction: column;
+  min-width: 180px;
+}
+
+.catalog-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.catalog-list li {
+  align-items: stretch;
+}
+
 .menu-list li:hover,
 .orders-list li:hover,
 .table-card:hover {

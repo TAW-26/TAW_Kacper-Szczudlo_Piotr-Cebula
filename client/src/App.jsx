@@ -124,8 +124,16 @@ function App() {
     createReservation,
   } = useReservations(token, canReadReservations);
 
-  const { isMutating: isMenuMutating, error: menuMutatingError, createMenuItem, updateMenuItem, deleteMenuItem } =
-    useMenuManager(token, refreshMenu);
+  const {
+    isMutating: isMenuMutating,
+    isCatalogLoading: isMenuCatalogLoading,
+    error: menuMutatingError,
+    updateMenuItem,
+    deleteMenuItem,
+    loadCatalogCategories,
+    loadCatalogItems,
+    importCatalogItem,
+  } = useMenuManager(token, refreshMenu);
 
   const activeError = useMemo(
     () =>
@@ -371,10 +379,10 @@ function App() {
     }
   };
 
-  const handleCreateMenuItem = async (payload) => {
+  const handleImportCatalogMenuItem = async (payload) => {
     try {
-      await createMenuItem(payload);
-      setSuccessNotice('Pozycja menu dodana.');
+      await importCatalogItem(payload);
+      setSuccessNotice('Pozycja menu dodana z bazy TheMealDB.');
     } catch (error) {
       setErrorNotice(error.message);
     }
@@ -518,9 +526,12 @@ function App() {
                     menuItems={menuItems}
                     role={role}
                     isMutating={isMenuMutating}
-                    onCreateMenuItem={handleCreateMenuItem}
+                    isCatalogLoading={isMenuCatalogLoading}
                     onUpdateMenuItem={handleUpdateMenuItem}
                     onDeleteMenuItem={handleDeleteMenuItem}
+                    onLoadCatalogCategories={loadCatalogCategories}
+                    onLoadCatalogItems={loadCatalogItems}
+                    onImportCatalogItem={handleImportCatalogMenuItem}
                   />
                 </div>
               </section>

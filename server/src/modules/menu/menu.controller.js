@@ -1,39 +1,41 @@
 import * as menuService from "./menu.service.js";
+import { asyncHandler } from "../../common/asyncHandler.js";
 
-export const getAllMenuItems = async (req, res) => {
-    try {
-        const result = await menuService.getAllMenuItems();
-        res.status(200).json(result);
-    } catch (error) {
-        res.status(error.status || 500).json({ error: error.message || "Błąd serwera" });
-    }
-}
+export const getAllMenuItems = asyncHandler(async (req, res) => {
+    const result = await menuService.getAllMenuItems();
+    res.status(200).json(result);
+});
 
-export const createMenuItem = async (req, res) => {
-    try{
-        const result = await menuService.createMenuItem(req.body);
-        res.status(201).json(result);
-    }
-    catch (error) {
-        res.status(error.status || 500).json({ error: error.message || "Błąd serwera podczas tworzenia pozycji menu" });
-    }
-}
+export const getPublicCatalogCategories = asyncHandler(async (req, res) => {
+    const result = await menuService.getPublicMenuCatalogCategories();
+    res.status(200).json(result);
+});
 
-export const updateMenuItem = async (req, res) => {
-    try{
-        const result = await menuService.updateMenuItem(req.params.id, req.body);
-        res.status(200).json(result);
-    }
-    catch (error) {
-        res.status(error.status || 500).json({ error: error.message || "Błąd serwera podczas aktualizacji pozycji menu" });
-    }
-}
+export const getPublicCatalogItems = asyncHandler(async (req, res) => {
+    const result = await menuService.getPublicMenuCatalog({
+        category: req.query.category,
+        search: req.query.search,
+        sort: req.query.sort,
+    });
+    res.status(200).json(result);
+});
 
-export const deleteMenuItem = async (req, res) => {
-    try {
-        const result = await menuService.deleteMenuItem(req.params.id);
-        res.status(200).json(result);
-    } catch (error) {
-        res.status(error.status || 500).json({ error: error.message || "Błąd serwera podczas usuwania pozycji menu" });
-    }
-}
+export const createMenuItem = asyncHandler(async (req, res) => {
+    const result = await menuService.createMenuItem(req.body);
+    res.status(201).json(result);
+});
+
+export const importMenuItem = asyncHandler(async (req, res) => {
+    const result = await menuService.importMenuItemFromCatalog(req.body);
+    res.status(201).json(result);
+});
+
+export const updateMenuItem = asyncHandler(async (req, res) => {
+    const result = await menuService.updateMenuItem(req.params.id, req.body);
+    res.status(200).json(result);
+});
+
+export const deleteMenuItem = asyncHandler(async (req, res) => {
+    const result = await menuService.deleteMenuItem(req.params.id);
+    res.status(200).json(result);
+});

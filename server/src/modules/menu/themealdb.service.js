@@ -73,12 +73,10 @@ const ensureCatalogCache = async () => {
 };
 
 export const getThemealdbCategories = async () => {
-  await ensureCatalogCache();
   return cacheState.categories;
 };
 
 export const getThemealdbCatalog = async ({ category, search, sort }) => {
-  await ensureCatalogCache();
 
   const normalizedSearch = (search ?? '').trim().toLowerCase();
   const normalizedCategory = (category ?? '').trim();
@@ -105,7 +103,6 @@ export const getThemealdbCatalogItemById = async (mealId) => {
     throw new AppError('Nieprawidłowe ID pozycji z katalogu', 400);
   }
 
-  await ensureCatalogCache();
   const catalogItem = cacheState.catalog.find((item) => item.externalId === mealId);
 
   if (!catalogItem) {
@@ -128,4 +125,21 @@ export const getThemealdbMealDetails = async (mealId) => {
   }
 
   return meal;
+};
+
+export const startBackgroundCatalogRefresh = () => {
+  // Initial refresh at startup
+  refreshCatalogCache().catch((error) => {
+    console.error('Failed to initialize TheMealDB catalog cache:', error);
+  });
+
+  // Periodic refresh every 15 minutes
+  setInterval(() => {
+    const now = Date.now();
+    if (cacheState.expiresAt <= now) {
+      refreshCatalogCache().catch((error) => {
+        console.error('Failed to refresh TheMealDB catalog cache:', error);
+      });
+    }
+  }, CATALOG_CACHE_TTL_MS);
 };

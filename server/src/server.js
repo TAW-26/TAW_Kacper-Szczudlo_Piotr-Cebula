@@ -1,6 +1,7 @@
 import app from './app.js';
 import { connectDB } from './database/connect.js';
 import { logger } from './common/logger.js';
+import { startBackgroundCatalogRefresh } from './modules/menu/themealdb.service.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -15,6 +16,7 @@ process.on('uncaughtException', (error) => {
 });
 
 connectDB().then(() => {
+    startBackgroundCatalogRefresh();
     app.listen(PORT, () => {
         logger.info({ port: PORT }, 'Server is running');
     });
